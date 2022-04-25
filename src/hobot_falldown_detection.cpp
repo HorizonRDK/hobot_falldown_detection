@@ -19,10 +19,14 @@ hobot_falldown_detection::hobot_falldown_detection(
     this->declare_parameter<int>("paramSensivity", paramSensivity);
     this->declare_parameter<std::string>("body_kps_topic_name",
                                             body_kps_topic_name);
+    this->declare_parameter<std::string>("pub_smart_topic_name",
+                                            msg_falldown_topic_name);
 
     this->get_parameter<int>("paramSensivity", paramSensivity);
     this->get_parameter<std::string>("body_kps_topic_name",
                                         body_kps_topic_name);
+    this->get_parameter<std::string>("pub_smart_topic_name",
+                                            msg_falldown_topic_name);
 
     if (paramSensivity == Sensivity::High)
     {
@@ -54,7 +58,8 @@ hobot_falldown_detection::hobot_falldown_detection(
     std::stringstream ss;
     ss << "Parameter:" << "\n paramSensivity: "
     << paramSensivity << "\n topic name: "
-    << body_kps_topic_name;
+    << body_kps_topic_name << "\n pub_smart_topic_name: "
+    << msg_falldown_topic_name;
     RCLCPP_WARN(rclcpp::get_logger("example"), "%s", ss.str().c_str());
 
     RCLCPP_WARN(rclcpp::get_logger("body_kps_Subscriber"),
@@ -80,6 +85,13 @@ hobot_falldown_detection::~hobot_falldown_detection() {}
 void hobot_falldown_detection::topic_callback(
     const ai_msgs::msg::PerceptionTargets::ConstSharedPtr msg)
 {
+    struct timespec time_start = {0, 0};
+    clock_gettime(CLOCK_REALTIME, &time_start);
+    ai_msgs::msg::Perf perf;
+    perf.set__type("PostProcess");
+    perf.stamp_start.sec = time_start.tv_sec;
+    perf.stamp_start.nanosec = time_start.tv_nsec;
+
     auto targetList = msg->targets;
     ai_msgs::msg::PerceptionTargets::UniquePtr
             publish_data(new ai_msgs::msg::PerceptionTargets());
@@ -87,61 +99,67 @@ void hobot_falldown_detection::topic_callback(
     for (auto &target : targetList)
     {
         auto targetType = target.type;
-        if (TargetTypePersion != targetType)
-        {
-            continue;
-        }
         auto pointList = target.points;
         auto track_id = target.track_id;
         bool isfalldown = false;
         for (auto &pointNode : pointList)
         {
             auto pointType = pointNode.type;
+            std::stringstream ss1;
+            ss1 << "targetType: " << targetType << "pointType: " << pointType;
+            RCLCPP_DEBUG(rclcpp::get_logger("body_kps_Subscriber"),
+                            "receive %s", ss1.str().c_str());
             if (PointTypeBody_kps != pointType)
             {
-                continue;
+                isfalldown = false;
+            } else {
+                auto point32List = pointNode.point;
+                isfalldown = IsFallDown(point32List);
             }
-            RCLCPP_DEBUG(rclcpp::get_logger("body_kps_Subscriber"),
-                            "receive body kps");
-            auto point32List = pointNode.point;
-            isfalldown = IsFallDown(point32List);
         }
+        ai_msgs::msg::Target pub_target;
+        pub_target.set__type(targetType);
+        pub_target.set__track_id(track_id);
+
+        ai_msgs::msg::Attribute attribute;
+        attribute.set__type("falldown");
         if (isfalldown)
         {
-            ai_msgs::msg::Target pub_target;
-            pub_target.set__type("person");
-            pub_target.set__track_id(track_id);
-
-            ai_msgs::msg::Attribute attribute;
-            attribute.set__type("falldown");
             attribute.set__value(1);
-
-            pub_target.attributes.emplace_back(std::move(attribute));
-            publish_data->targets.emplace_back(std::move(pub_target));
-
             std::stringstream ss;
             ss << "track_id: " << track_id << " is fall down";
             RCLCPP_DEBUG(rclcpp::get_logger("fall_down_publisher"),
                     "%s", ss.str().c_str());
+        } else {
+            attribute.set__value(0);
+            std::stringstream ss;
+            ss << "track_id: " << track_id << " is not fall down";
+            RCLCPP_DEBUG(rclcpp::get_logger("fall_down_publisher"),
+                    "%s", ss.str().c_str());
         }
+        pub_target.rois = target.rois;
+        pub_target.points = pointList;
+        pub_target.attributes.emplace_back(std::move(attribute));
+        publish_data->targets.emplace_back(std::move(pub_target));
     }
-    PublishFallDownEvent(msg, std::move(publish_data));
+    PublishFallDownEvent(msg, std::move(publish_data), perf);
 }
 
 void hobot_falldown_detection::PublishFallDownEvent(
         const ai_msgs::msg::PerceptionTargets::ConstSharedPtr msg,
-        ai_msgs::msg::PerceptionTargets::UniquePtr publish_data)
+        ai_msgs::msg::PerceptionTargets::UniquePtr publish_data,
+        ai_msgs::msg::Perf perf)
 {
-    if (publish_data->targets.empty())
-    {
-        return;
-    }
+    struct timespec time_start = {0, 0};
+    clock_gettime(CLOCK_REALTIME, &time_start);
+    perf.stamp_end.sec = time_start.tv_sec;
+    perf.stamp_end.nanosec = time_start.tv_nsec;
+
     publish_data->header.set__stamp(msg->header.stamp);
     publish_data->header.set__frame_id(msg->header.frame_id);
+    publish_data->set__fps(msg->fps);
+    publish_data->perfs.emplace_back(perf);
     falldown_publisher_->publish(std::move(publish_data));
-
-    RCLCPP_WARN(rclcpp::get_logger("fall_down_publisher"),
-                    "publish fall down event!!!");
 }
 
 bool hobot_falldown_detection::IsFallDown(

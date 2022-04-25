@@ -50,13 +50,13 @@ ai_msgs为自定义的消息格式，用于接收body_kps数据，发布推理�
 
 2、编译
 
-- 编译命令： 
+- 编译命令：
 
   ```
   export TARGET_ARCH=aarch64
   export TARGET_TRIPLE=aarch64-linux-gnu
   export CROSS_COMPILE=/usr/bin/$TARGET_TRIPLE-
-  
+
   colcon build --packages-select hobot_falldown_detection \
      --merge-install \
      --cmake-force-configure \
@@ -76,6 +76,10 @@ source ./install/local_setup.sh
 
 # 运行：使用订阅到的ai msg进行摔倒检测，并设置log级别为warn
 ros2 run hobot_falldown_detection hobot_falldown_detection --ros-args --log-level warn
-# 运行参数配置：灵敏度paramSensivity默认为3(0:ExLow, 1:Low, 2:Middle, 3:High),订阅的topic名默认为hobot_mono2d_body_detection.可通过-p选项更改默认
-ros2 run hobot_falldown_detection hobot_falldown_detection --ros-args --log-level warn -p paramSensivity:=3 -p body_kps_topic_name:=hobot_mono2d_body_detection
+
+# 运行参数配置：灵敏度paramSensivity默认为3(0:ExLow, 1:Low, 2:Middle, 3:High),订阅的ksp_point的topic默认为hobot_mono2d_body_detection,发布智能结果的topic默认为falldown_event.可通过-p选项更改默认
+ros2 run hobot_falldown_detection hobot_falldown_detection --ros-args --log-level warn -p paramSensivity:=3 -p body_kps_topic_name:=hobot_mono2d_body_detection -p pub_smart_topic_name:=smart_topic
+
+# web端展示渲染效果: hobot_falldown_detection的检测结果可以通过hobot_websocket查看web端渲染效果，需要在启动hobot_websocket的时候将订阅智能结果topic(smart_topic)与hobot_falldown_detection的发布智能结果的topic(pub_smart_topic_name)保持一致。查看上一条运行参数配置对hobot_falldown_detection的参数进行配置，hobot_websocket的参数配置请查看hobot_websocket/README.md。运行hobot_falldown_detection后，web端展示流程请查看hobot_websocket/README.md。
 ```
+![image](./falldown.jpg)

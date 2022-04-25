@@ -53,7 +53,8 @@ class hobot_falldown_detection: public rclcpp::Node
 
     void PublishFallDownEvent(
         const ai_msgs::msg::PerceptionTargets::ConstSharedPtr msg,
-        ai_msgs::msg::PerceptionTargets::UniquePtr publish_data);
+        ai_msgs::msg::PerceptionTargets::UniquePtr publish_data,
+        ai_msgs::msg::Perf perf);
 
     float upper_body_low_ = 30.0f;
     float upper_body_high_ = 66.0f;
