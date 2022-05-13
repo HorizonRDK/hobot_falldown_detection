@@ -1,14 +1,12 @@
-# hobot_falldown_detection
-
-## Intro
+# 功能介绍
 
 hobot_falldown_detection package是订阅ai msg，接收到body_kps数据后判断人体是否摔倒并发布摔倒事件的人体摔倒检测算法示例。
 body_kps数据来源于订阅到的ai msg。
-摔倒事件使用自定义的hobot ai msg发布出去，发布topic名为“falldown_event”。用户可以订阅此topic的ai msg用于应用开发。
+摔倒事件使用自定义的hobot ai msg发布出去, 用户可以订阅此topic的ai msg用于应用开发。
 
-## Build
+# 编译
 
-### Dependency
+## 依赖库
 
 ros package：
 
@@ -27,15 +25,13 @@ ai_msgs为自定义的消息格式，用于接收body_kps数据，发布推理�
 
 支持在X3 Ubuntu系统上编译和在PC上使用docker交叉编译两种方式。
 
-#### 编译选项
-
-#### X3 Ubuntu系统上编译
+#### Ubuntu系统上编译
 
 1、编译环境确认
 
-- 当前编译终端已设置ROS环境变量：`source /opt/ros/foxy/setup.bash`。
-- 已安装ROS2编译工具colcon。安装的ROS不包含编译工具colcon，需要手动安装colcon。colcon安装命令：`apt update; apt install python3-colcon-common-extensions`
-- 已安装ai_msgs
+    - 板端已安装X3 Ubuntu系统。
+    - 当前编译终端已设置TogetherROS环境变量：`source PATH/setup.bash`。其中PATH为TogetherROS的安装路径。
+    - 已安装ROS2编译工具colcon，安装命令：`pip install -U colcon-common-extensions`
 
 2、编译
 
@@ -45,8 +41,7 @@ ai_msgs为自定义的消息格式，用于接收body_kps数据，发布推理�
 
 1、编译环境确认
 
-- 在docker中编译，并且docker中已经安装好tros。docker安装、交叉编译说明、tros编译和部署说明：http://gitlab.hobot.cc/robot_dev_platform/robot_dev_config/blob/dev/README.md
-- 已安装ai_msgs
+- 在docker中编译，并且docker中已经安装好TogetherROS。docker安装、交叉编译说明、TogetherROS编译和部署说明详见机器人开发平台robot_dev_config repo中的README.md。
 
 2、编译
 
@@ -65,21 +60,89 @@ ai_msgs为自定义的消息格式，用于接收body_kps数据，发布推理�
      -DCMAKE_TOOLCHAIN_FILE=`pwd`/robot_dev_config/aarch64_toolchainfile.cmake
   ```
 
+## 注意事项
 
-## Usage
+# 使用介绍
+
+## 依赖
+
+- mipi_cam package：发布图片msg
+- websocket package：渲染图片和ai感知msg
+- mono2d_body_detection package：人体kps检测
+
+## 参数
+
+| 参数名         | 解释         | 是否必须   | 默认值        | 备注         |
+| ----------- | ---------- | ------ | ---------- | ---------- |
+| paramSensivity | 灵敏度 0:ExLow, 1:Low, 2:Middle, 3:High | 否 | 3 |            |
+| body_kps_topic_name | 订阅的ksp_point的topic | 否 | hobot_mono2d_body_detection | |
+| pub_smart_topic_name | 发布智能结果的topic | 否 | falldown_event     |  |
+
+## 运行
 
 编译成功后，将生成的install路径拷贝到地平线X3开发板上（如果是在X3上编译，忽略拷贝步骤），并执行如下命令运行
 
+### **Ubuntu**
+
 ```
 export COLCON_CURRENT_PREFIX=./install
-source ./install/local_setup.sh
+source ./install/setup.bash
 
-# 运行：使用订阅到的ai msg进行摔倒检测，并设置log级别为warn
-ros2 run hobot_falldown_detection hobot_falldown_detection --ros-args --log-level warn
+# config中为示例使用的模型，根据实际安装路径进行拷贝
+# 如果是板端编译（无--merge-install编译选项），拷贝命令为cp -r install/PKG_NAME/lib/PKG_NAME/config/ .，其中PKG_NAME为具体的package名。
 
-# 运行参数配置：灵敏度paramSensivity默认为3(0:ExLow, 1:Low, 2:Middle, 3:High),订阅的ksp_point的topic默认为hobot_mono2d_body_detection,发布智能结果的topic默认为falldown_event.可通过-p选项更改默认
-ros2 run hobot_falldown_detection hobot_falldown_detection --ros-args --log-level warn -p paramSensivity:=3 -p body_kps_topic_name:=hobot_mono2d_body_detection -p pub_smart_topic_name:=smart_topic
+cp -r install/lib/mono2d_body_detection/config/ .
 
-# web端展示渲染效果: hobot_falldown_detection的检测结果可以通过hobot_websocket查看web端渲染效果，需要在启动hobot_websocket的时候将订阅智能结果topic(smart_topic)与hobot_falldown_detection的发布智能结果的topic(pub_smart_topic_name)保持一致。查看上一条运行参数配置对hobot_falldown_detection的参数进行配置，hobot_websocket的参数配置请查看hobot_websocket/README.md。运行hobot_falldown_detection后，web端展示流程请查看hobot_websocket/README.md。
+# 启动图片发布pkg
+ros2 run mipi_cam mipi_cam --ros-args -p out_format:=nv12 -p image_width:=960 -p image_height:=544 -p io_method:=shared_mem --log-level error &
+
+# 启动jpeg图片编码&发布pkg
+ros2 run hobot_codec hobot_codec_republish --ros-args -p channel:=1 -p in_mode:=shared_mem -p in_format:=nv12 -p out_mode:=ros -p out_format:=jpeg -p sub_topic:=/hbmem_img -p pub_topic:=/image_jpeg --ros-args --log-level error &
+
+# 启动单目rgb人体、人头、人脸、人手框和人体关键点检测pkg
+ros2 run mono2d_body_detection mono2d_body_detection --ros-args --log-level error &
+
+# 启动web展示pkg
+ros2 run websocket websocket --ros-args -p image_topic:=/image_jpeg -p image_type:=mjpeg -p smart_topic:=/hobot_falldown_detection --ros-args --log-level error &
+
+# 启动跌倒检测pkg
+ros2 run hobot_falldown_detection hobot_falldown_detection --ros-args  -p paramSensivity:=3 -p body_kps_topic_name:=hobot_mono2d_body_detection -p pub_smart_topic_name:=/hobot_falldown_detection
 ```
+
+### **Linux**
+```
+export ROS_LOG_DIR=/userdata/
+export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:./install/lib/
+
+# config中为示例使用的模型，根据实际安装路径进行拷贝
+cp -r install/lib/mono2d_body_detection/config/ .
+
+# 启动图片发布pkg
+./install/lib/mipi_cam/mipi_cam --ros-args -p out_format:=nv12 -p image_width:=960 -p image_height:=544 -p io_method:=shared_mem --log-level error &
+
+# 启动jpeg图片编码&发布pkg
+./install/lib/hobot_codec/hobot_codec_republish --ros-args -p channel:=1 -p in_mode:=shared_mem -p in_format:=nv12 -p out_mode:=ros -p out_format:=jpeg -p sub_topic:=/hbmem_img -p pub_topic:=/image_jpeg --ros-args --log-level error &
+
+# 启动web展示pkg
+./install/lib/websocket/websocket --ros-args -p image_topic:=/image_jpeg -p image_type:=mjpeg -p smart_topic:=/hobot_mono2d_body_detection --log-level error &
+
+# 启动单目rgb人体、人头、人脸、人手框和人体关键点检测pkg
+./install/lib/mono2d_body_detection/mono2d_body_detection --ros-args --log-level error &
+
+# 启动跌倒检测pkg
+./install/lib/hobot_falldown_detection/hobot_falldown_detection --ros-args  -p paramSensivity:=3 -p body_kps_topic_name:=hobot_mono2d_body_detection -p pub_smart_topic_name:=/hobot_falldown_detection
+```
+
+## 注意事项
+
+第一次运行web展示需要启动webserver服务，运行方法为:
+
+- cd 到websocket的部署路径下：`cd install/lib/websocket/webservice/`（如果是板端编译（无--merge-install编译选项）执行命令为`cd install/websocket/lib/websocket/webservice`）
+- 启动nginx：`chmod +x ./sbin/nginx && ./sbin/nginx -p .`
+
+# 结果分析
+
+## web效果展示
+
 ![image](./falldown.jpg)
+
