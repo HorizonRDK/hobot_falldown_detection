@@ -124,7 +124,7 @@ cp -r install/lib/mono2d_body_detection/config/ .
 ./install/lib/hobot_codec/hobot_codec_republish --ros-args -p channel:=1 -p in_mode:=shared_mem -p in_format:=nv12 -p out_mode:=ros -p out_format:=jpeg -p sub_topic:=/hbmem_img -p pub_topic:=/image_jpeg --ros-args --log-level error &
 
 # 启动web展示pkg
-./install/lib/websocket/websocket --ros-args -p image_topic:=/image_jpeg -p image_type:=mjpeg -p smart_topic:=/hobot_mono2d_body_detection --log-level error &
+./install/lib/websocket/websocket --ros-args -p image_topic:=/image_jpeg -p image_type:=mjpeg -p smart_topic:=/hobot_falldown_detection --log-level error &
 
 # 启动单目rgb人体、人头、人脸、人手框和人体关键点检测pkg
 ./install/lib/mono2d_body_detection/mono2d_body_detection --ros-args --log-level error &
