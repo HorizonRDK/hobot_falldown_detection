@@ -84,6 +84,8 @@ ai_msgs为自定义的消息格式，用于接收body_kps数据，发布推理�
 
 ### **Ubuntu**
 
+运行方式1，使用ros2 run启动：
+
 ```
 export COLCON_CURRENT_PREFIX=./install
 source ./install/setup.bash
@@ -107,6 +109,21 @@ ros2 run websocket websocket --ros-args -p image_topic:=/image_jpeg -p image_typ
 
 # 启动跌倒检测pkg
 ros2 run hobot_falldown_detection hobot_falldown_detection --ros-args  -p paramSensivity:=3 -p body_kps_topic_name:=hobot_mono2d_body_detection -p pub_smart_topic_name:=/hobot_falldown_detection
+```
+
+运行方式2，使用launch文件启动：
+```
+export COLCON_CURRENT_PREFIX=./install
+source ./install/setup.bash
+
+# config中为示例使用的模型，根据实际安装路径进行拷贝
+# 如果是板端编译（无--merge-install编译选项），拷贝命令为cp -r install/PKG_NAME/lib/PKG_NAME/config/ .，其中PKG_NAME为具体的package名。
+
+cp -r install/lib/mono2d_body_detection/config/ .
+
+# 启动launch文件
+ros2 launch install/share/hobot_falldown_detection/launch/hobot_falldown_detection.launch.py
+
 ```
 
 ### **Linux**

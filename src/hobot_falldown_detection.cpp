@@ -102,6 +102,7 @@ void hobot_falldown_detection::topic_callback(
         auto pointList = target.points;
         auto track_id = target.track_id;
         bool isfalldown = false;
+        bool has_body_kps = false;
         for (auto &pointNode : pointList)
         {
             auto pointType = pointNode.type;
@@ -113,6 +114,7 @@ void hobot_falldown_detection::topic_callback(
             {
                 isfalldown = false;
             } else {
+                has_body_kps = true;
                 auto point32List = pointNode.point;
                 isfalldown = IsFallDown(point32List);
             }
@@ -121,25 +123,27 @@ void hobot_falldown_detection::topic_callback(
         pub_target.set__type(targetType);
         pub_target.set__track_id(track_id);
 
-        ai_msgs::msg::Attribute attribute;
-        attribute.set__type("falldown");
-        if (isfalldown)
-        {
-            attribute.set__value(1);
-            std::stringstream ss;
-            ss << "track_id: " << track_id << " is fall down";
-            RCLCPP_DEBUG(rclcpp::get_logger("fall_down_publisher"),
-                    "%s", ss.str().c_str());
-        } else {
-            attribute.set__value(0);
-            std::stringstream ss;
-            ss << "track_id: " << track_id << " is not fall down";
-            RCLCPP_DEBUG(rclcpp::get_logger("fall_down_publisher"),
-                    "%s", ss.str().c_str());
+        if (has_body_kps) {
+            ai_msgs::msg::Attribute attribute;
+            attribute.set__type("falldown");
+            if (isfalldown) {
+                attribute.set__value(1);
+                std::stringstream ss;
+                ss << "track_id: " << track_id << " is fall down";
+                RCLCPP_DEBUG(rclcpp::get_logger("fall_down_publisher"),
+                        "%s", ss.str().c_str());
+            } else {
+                attribute.set__value(0);
+                std::stringstream ss;
+                ss << "track_id: " << track_id << " is not fall down";
+                RCLCPP_DEBUG(rclcpp::get_logger("fall_down_publisher"),
+                        "%s", ss.str().c_str());
+            }
+            pub_target.attributes.emplace_back(std::move(attribute));
         }
+
         pub_target.rois = target.rois;
         pub_target.points = pointList;
-        pub_target.attributes.emplace_back(std::move(attribute));
         publish_data->targets.emplace_back(std::move(pub_target));
     }
     PublishFallDownEvent(msg, std::move(publish_data), perf);
