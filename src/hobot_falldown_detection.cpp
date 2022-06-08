@@ -108,7 +108,7 @@ void hobot_falldown_detection::topic_callback(
             auto pointType = pointNode.type;
             std::stringstream ss1;
             ss1 << "targetType: " << targetType << "pointType: " << pointType;
-            RCLCPP_DEBUG(rclcpp::get_logger("body_kps_Subscriber"),
+            RCLCPP_INFO(rclcpp::get_logger("body_kps_Subscriber"),
                             "receive %s", ss1.str().c_str());
             if (PointTypeBody_kps != pointType)
             {
@@ -130,13 +130,13 @@ void hobot_falldown_detection::topic_callback(
                 attribute.set__value(1);
                 std::stringstream ss;
                 ss << "track_id: " << track_id << " is fall down";
-                RCLCPP_DEBUG(rclcpp::get_logger("fall_down_publisher"),
+                RCLCPP_INFO(rclcpp::get_logger("fall_down_publisher"),
                         "%s", ss.str().c_str());
             } else {
                 attribute.set__value(0);
                 std::stringstream ss;
                 ss << "track_id: " << track_id << " is not fall down";
-                RCLCPP_DEBUG(rclcpp::get_logger("fall_down_publisher"),
+                RCLCPP_INFO(rclcpp::get_logger("fall_down_publisher"),
                         "%s", ss.str().c_str());
             }
             pub_target.attributes.emplace_back(std::move(attribute));
